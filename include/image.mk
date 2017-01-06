@@ -448,6 +448,11 @@ define Build/sysupgrade-nand
 		$@
 endef
 
+define Build/kernel2minor
+	kernel2minor -k $@ -r $@.new $(1)
+	mv $@.new $@
+endef
+
 define Device/Init
   PROFILES := $(PROFILE)
   DEVICE_NAME := $(1)
