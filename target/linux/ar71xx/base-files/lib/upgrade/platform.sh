@@ -109,6 +109,21 @@ cybertan_get_image_magic() {
 	get_image "$@" | dd bs=8 count=1 skip=0  2>/dev/null | hexdump -v -n 8 -e '1/1 "%02x"'
 }
 
+rb_get_nor_magic() {
+	get_image "$@" | dd bs=1 count=16 skip=0 2>/dev/null | hexdump -v -n 16 -e '1/1 "%02x"'
+}
+
+rb_check_nor_image() {
+	local magic="$(rb_get_nor_magic "$1")"
+
+	[ "$magic" != "0000000100000001ffff6b65726e656c" ] && {
+		echo "Invalid image type"
+		return 1
+	}
+
+	return 0
+}
+
 cybertan_check_image() {
 	local magic="$(cybertan_get_image_magic "$1")"
 	local fw_magic="$(cybertan_get_hw_magic)"
@@ -526,6 +541,12 @@ platform_check_image() {
                 return 0
                 ;;
 
+	rb-911-2hn|\
+	rb-911-5hn)
+		rb_check_nor_image "$1"
+		return $?;
+		;;
+
 	esac
 
 	echo "Sysupgrade is not yet supported on $board."
@@ -603,6 +624,15 @@ platform_do_upgrade() {
 	unifi-outdoor-plus | \
 	uap-pro)
 		MTD_CONFIG_ARGS="-s 0x180000"
+		default_do_upgrade "$ARGV"
+		;;
+	rb-911-2hn|\
+	rb-911-5hn)
+		# if we are booted from initramfs, tell the mtd command
+		# to erase the firmware partition before writing the image
+		[ -z "$(rootfs_type)" ] && \
+			MTD_CONFIG_ARGS="-e firmware" \
+			MTD_NOCONFIG_ARGS="-e firmware"
 		default_do_upgrade "$ARGV"
 		;;
 	*)
