@@ -1,5 +1,5 @@
 BOARDNAME:=Mikrotik devices with NAND flash
-FEATURES += targz ramdisk
+FEATURES += targz ramdisk minor
 
 define Target/Description
 	Build firmware images for Atheros AR71xx/AR913x based Mikrotik boards.
