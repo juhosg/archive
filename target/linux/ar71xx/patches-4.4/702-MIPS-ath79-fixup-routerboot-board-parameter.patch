@@ -39,5 +39,5 @@ Signed-off-by: Gabor Juhos <juhosg@freemail.hu>
 +		c[0] = 'b';
 +
  	if (strstr(arcs_cmdline, "board=750Gr3") ||
- 	    strstr(arcs_cmdline, "board=951G") ||
- 	    strstr(arcs_cmdline, "board=2011L") ||
+ 	    strstr(arcs_cmdline, "board=750i") ||
+ 	    strstr(arcs_cmdline, "board=411") ||
