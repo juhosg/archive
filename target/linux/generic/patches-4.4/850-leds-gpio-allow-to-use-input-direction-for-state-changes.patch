@@ -1,0 +1,174 @@
+--- a/drivers/leds/leds-gpio.c
++++ b/drivers/leds/leds-gpio.c
+@@ -29,6 +29,7 @@ struct gpio_led_data {
+ 	u8 new_level;
+ 	u8 can_sleep;
+ 	u8 blinking;
++	u8 direction;
+ 	int (*platform_gpio_blink_set)(struct gpio_desc *desc, int state,
+ 			unsigned long *delay_on, unsigned long *delay_off);
+ };
+@@ -70,8 +71,20 @@ static void gpio_led_set(struct led_clas
+ 			led_dat->platform_gpio_blink_set(led_dat->gpiod, level,
+ 							 NULL, NULL);
+ 			led_dat->blinking = 0;
+-		} else
+-			gpiod_set_value(led_dat->gpiod, level);
++		} else {
++			if (led_dat->direction == LEDS_GPIO_DIR_OUTPUT) {
++				gpiod_set_value(led_dat->gpiod, level);
++			} else if (((level == 0) &&
++				    (led_dat->direction ==
++				     LEDS_GPIO_DIR_INPUT_OFF)) ||
++				   ((level != 0) &&
++				    (led_dat->direction ==
++				     LEDS_GPIO_DIR_INPUT_ON))) {
++				gpiod_direction_input(led_dat->gpiod);
++			} else {
++				gpiod_direction_output(led_dat->gpiod, 1);
++			}
++		}
+ 	}
+ }
+ 
+@@ -109,6 +122,12 @@ static int create_gpio_led(const struct
+ 			return 0;
+ 		}
+ 
++		if ((template->direction == LEDS_GPIO_DIR_INPUT_ON) ||
++		    (template->direction == LEDS_GPIO_DIR_INPUT_OFF))
++			flags = GPIOF_IN;
++		else
++			flags = GPIOF_OUT_INIT_LOW;
++
+ 		if (template->active_low)
+ 			flags |= GPIOF_ACTIVE_LOW;
+ 
+@@ -122,6 +141,8 @@ static int create_gpio_led(const struct
+ 			return PTR_ERR(led_dat->gpiod);
+ 	}
+ 
++	led_dat->direction = template->direction;
++
+ 	led_dat->cdev.name = template->name;
+ 	led_dat->cdev.default_trigger = template->default_trigger;
+ 	led_dat->can_sleep = gpiod_cansleep(led_dat->gpiod);
+@@ -131,15 +152,47 @@ static int create_gpio_led(const struct
+ 		led_dat->cdev.blink_set = gpio_blink_set;
+ 	}
+ 	led_dat->cdev.brightness_set = gpio_led_set;
+-	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP)
+-		state = !!gpiod_get_value_cansleep(led_dat->gpiod);
+-	else
++	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP) {
++		switch (led_dat->direction) {
++		case LEDS_GPIO_DIR_OUTPUT:
++			state = gpiod_get_value_cansleep(led_dat->gpiod);
++			break;
++
++		case LEDS_GPIO_DIR_INPUT_ON:
++		case LEDS_GPIO_DIR_INPUT_OFF:
++			state = gpiod_get_direction(led_dat->gpiod);
++			if (state < 0)
++				break;
++
++			if (((state == GPIOF_DIR_IN) &&
++			     (led_dat->direction == LEDS_GPIO_DIR_INPUT_ON)) ||
++			    ((state == GPIOF_DIR_OUT) &&
++			     (led_dat->direction != LEDS_GPIO_DIR_INPUT_ON)))
++				state = 1;
++			else
++				state = 0;
++			break;
++
++		default:
++			state = -EINVAL;
++			break;
++		}
++
++		if (state < 0)
++			return state;
++	} else {
+ 		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
++	}
+ 	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
+ 	if (!template->retain_state_suspended)
+ 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
+ 
+-	ret = gpiod_direction_output(led_dat->gpiod, state);
++	if ((state == 0 && led_dat->direction == LEDS_GPIO_DIR_INPUT_OFF) ||
++	    (state == 1 && led_dat->direction == LEDS_GPIO_DIR_INPUT_ON))
++		ret = gpiod_direction_input(led_dat->gpiod);
++	else
++		ret = gpiod_direction_output(led_dat->gpiod, state);
++
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -184,6 +237,7 @@ static struct gpio_leds_priv *gpio_leds_
+ 	device_for_each_child_node(dev, child) {
+ 		struct gpio_led led = {};
+ 		const char *state = NULL;
++		const char *direction = NULL;
+ 
+ 		led.gpiod = devm_get_gpiod_from_child(dev, NULL, child);
+ 		if (IS_ERR(led.gpiod)) {
+@@ -217,6 +271,16 @@ static struct gpio_leds_priv *gpio_leds_
+ 				led.default_state = LEDS_GPIO_DEFSTATE_OFF;
+ 		}
+ 
++		if (!fwnode_property_read_string(child, "direction",
++						 &direction)) {
++			if (!strcmp(state, "input-on"))
++				led.direction = LEDS_GPIO_DIR_INPUT_ON;
++			else if (!strcmp(state, "input-off"))
++				led.direction = LEDS_GPIO_DIR_INPUT_OFF;
++			else
++				led.direction = LEDS_GPIO_DIR_OUTPUT;
++		}
++
+ 		if (fwnode_property_present(child, "retain-state-suspended"))
+ 			led.retain_state_suspended = 1;
+ 
+--- a/include/linux/leds.h
++++ b/include/linux/leds.h
+@@ -339,12 +339,18 @@ struct gpio_led {
+ 	unsigned	retain_state_suspended : 1;
+ 	unsigned	default_state : 2;
+ 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
++	unsigned	direction : 2;
++	/* direction should be one of LEDS_GPIO_DIR_(OUTPUT|INPUT_ON|INPUT_OFF) */
+ 	struct gpio_desc *gpiod;
+ };
+ #define LEDS_GPIO_DEFSTATE_OFF		0
+ #define LEDS_GPIO_DEFSTATE_ON		1
+ #define LEDS_GPIO_DEFSTATE_KEEP		2
+ 
++#define LEDS_GPIO_DIR_OUTPUT		0
++#define LEDS_GPIO_DIR_INPUT_ON		1
++#define LEDS_GPIO_DIR_INPUT_OFF		2
++
+ struct gpio_led_platform_data {
+ 	int 		num_leds;
+ 	const struct gpio_led *leds;
+--- a/Documentation/devicetree/bindings/leds/leds-gpio.txt
++++ b/Documentation/devicetree/bindings/leds/leds-gpio.txt
+@@ -23,6 +23,18 @@ LED sub-node properties:
+   property is not present.
+ - retain-state-suspended: (optional) The suspend state can be retained.Such
+   as charge-led gpio.
++- direction: (optional) A string defining how the direction of the GPIO line
++  must be handled to turn on/off the LED. Valid values are:
++     "output"    - The direction of the GPIO line must be set to output.
++		   The LED can be turned on and off by changing the logical
++		   value of the GPIO line. This is the default value if the
++		   property is not present.
++     "input-on"  - The direction of the GPIO line must be set to input to
++		   turn the LED on. Setting the direction to output turns
++		   the LED off.
++     "input-off" - The direction of the GPIO line must be set to input to
++		   turn the LED off. Setting the direction to output turns
++		   the LED on.
+ 
+ Examples:
+ 
