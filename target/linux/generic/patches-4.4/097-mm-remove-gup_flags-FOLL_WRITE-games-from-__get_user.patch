@@ -40,11 +40,9 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  mm/gup.c           | 14 ++++++++++++--
  2 files changed, 13 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index cfebb74..f0ffa01 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -2112,6 +2112,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
+@@ -2112,6 +2112,7 @@ static inline struct page *follow_page(s
  #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
  #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
  #define FOLL_MLOCK	0x1000	/* lock present pages */
@@ -52,11 +50,9 @@ index cfebb74..f0ffa01 100644
  
  typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
  			void *data);
-diff --git a/mm/gup.c b/mm/gup.c
-index deafa2c..4b0b7e7 100644
 --- a/mm/gup.c
 +++ b/mm/gup.c
-@@ -58,6 +58,16 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
+@@ -58,6 +58,16 @@ static int follow_pfn_pte(struct vm_area
  	return -EEXIST;
  }
  
@@ -82,7 +78,7 @@ index deafa2c..4b0b7e7 100644
  		pte_unmap_unlock(ptep, ptl);
  		return NULL;
  	}
-@@ -352,7 +362,7 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+@@ -352,7 +362,7 @@ static int faultin_page(struct task_stru
  	 * reCOWed by userspace write).
  	 */
  	if ((ret & VM_FAULT_WRITE) && !(vma->vm_flags & VM_WRITE))
@@ -91,6 +87,3 @@ index deafa2c..4b0b7e7 100644
  	return 0;
  }
  
--- 
-cgit v0.12
-

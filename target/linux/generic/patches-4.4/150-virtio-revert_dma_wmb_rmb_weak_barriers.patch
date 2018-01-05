@@ -1,5 +1,3 @@
-diff --git a/include/linux/virtio_ring.h b/include/linux/virtio_ring.h
-index 8e50888..67e06fe 100644
 --- a/include/linux/virtio_ring.h
 +++ b/include/linux/virtio_ring.h
 @@ -21,20 +21,19 @@
@@ -25,7 +23,7 @@ index 8e50888..67e06fe 100644
  	else
  		rmb();
  }
-@@ -42,10 +41,26 @@ static inline void virtio_rmb(bool weak_barriers)
+@@ -42,10 +41,26 @@ static inline void virtio_rmb(bool weak_
  static inline void virtio_wmb(bool weak_barriers)
  {
  	if (weak_barriers)
