@@ -1,5 +1,5 @@
 BOARDNAME:=Mikrotik devices with NAND flash
-FEATURES += targz ramdisk minor
+FEATURES += targz ramdisk minor squashfs
 
 define Target/Description
 	Build firmware images for Atheros AR71xx/AR913x based Mikrotik boards.
