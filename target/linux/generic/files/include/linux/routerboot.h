@@ -103,4 +103,18 @@
 #define RB_BOOT_PROTOCOL_BOOTP	0
 #define RB_BOOT_PROTOCOL_DHCP	1
 
+/* Bit definitions for hardware options */
+#define RB_HW_OPT_UART_ABSENT          BIT(0)
+#define RB_HW_OPT_HAS_VOLTAGE          BIT(1)
+#define RB_HW_OPT_HAS_USB              BIT(2)
+#define RB_HW_OPT_HAS_ATTINY           BIT(3)
+#define RB_HW_OPT_NO_NAND              BIT(14)
+#define RB_HW_OPT_HAS_LCD              BIT(15)
+#define RB_HW_OPT_HAS_POE_OUT          BIT(16)
+#define RB_HW_OPT_HAS_uSD              BIT(17)
+#define RB_HW_OPT_HAS_SFP              BIT(20)
+#define RB_HW_OPT_HAS_WIFI             BIT(21)
+#define RB_HW_OPT_HAS_TS_FOR_ADC       BIT(22)
+#define RB_HW_OPT_HAS_PLC              BIT(29)
+
 #endif /* _ROUTERBOOT_H */
